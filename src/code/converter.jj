@@ -1,0 +1,120 @@
+PARSER_BEGIN(converter)
+package code;
+
+import java.io.StringReader;
+
+public class converter {
+
+    public static void main(String[] args) throws Exception {
+        StringReader in=new StringReader("ADD PARAGRAPH WITH TEXT \"Welcome\" AND WITH FONT \"Arial\" AND WITH COLOR \"Red\"");
+        converter converter=new converter(in);
+        System.out.println(in);
+        converter.words();
+    }
+
+}
+
+
+
+PARSER_END(converter)
+
+
+
+ SKIP: { " "|"\t"  |"\r" }
+
+ TOKEN : { <create:"ADD"  > }
+ TOKEN : {<img: "IMAGE WITH SOURCE"> }
+ TOKEN : {<header: "HEADING" > }
+ TOKEN : {<para: "PARAGRAPH" > }
+ TOKEN : {<url: "LINK" > }
+ TOKEN : {<decorated_text:("AND")> }
+ TOKEN : {<text : ("WITH TEXT")> }
+ TOKEN : {< color :("WITH COLOR")> }
+ TOKEN : {< font : ("WITH FONT") > }
+ TOKEN : {< link : ("WITH LINK") > }
+
+ TOKEN : {< sentence : (<alphanumeric >)+  > }
+ TOKEN : {< quote : "\""> }
+ TOKEN : {< alphanumeric : (["0"-"9"] | ["a"-"z"] | ["A"-"Z"] | "/" | ":" | "." | "_")+> }
+
+
+
+String words():
+{
+    int id=0;
+    String html="";
+    Token T;
+}
+{
+  html= createElement()
+   < EOF >
+   {
+    System.out.println("correct command");
+    System.out.println(html);
+    return html;
+  }
+
+}
+String createElement() :
+{Token T;String hl;String html="";}
+{
+    < create >
+    [T=<img >hl=image()
+    {html=T.image;html=html.replaceAll("IMAGE", "<img").replaceAll("WITH SOURCE", "src=")+hl;return html;  }
+    ]
+    [T=<header >hl=decorated()
+    {html=T.image;html=html.replaceAll("HEADING", "<h1 ")+hl+" </h1 >";
+    return html;  }]
+    [T=<para >hl=decorated()
+    {html=T.image;html=html.replaceAll("PARAGRAPH", "<p ")+hl+" </p>";return html;  }]
+    [T=<url >hl=decorated()
+    {html=T.image;html=html.replaceAll("LINK", "<a")+hl+" </a>";return html;  }]
+
+
+
+}
+String image() :{ Token T;String html="";
+
+ }
+{
+  < quote >T=<sentence >[<sentence >]<quote >
+  {
+            html=html + "\""+T.image+ "\"";
+            html = html + "/>";
+            return html; }
+}
+
+String decorated():
+{
+    Token T;
+    String html="";String ml="";
+}
+{
+    html= shape() [<decorated_text > ml=shape()
+    {
+        if (ml.startsWith("color")||ml.startsWith("font")){
+            html=" style=\""+ml+";"+html;
+        } else {html=ml+html;}
+    }
+    [<decorated_text >ml=decorated()
+    {
+        if (html.contains("href")&&(ml.startsWith("color")||ml.startsWith("font")))
+            {html=html.replaceAll(">"," style=\""+ml+";\">"); }
+        else { html=html.replaceAll(">",ml+" \">"); }
+    }]]
+    {return html;}
+}
+
+
+String shape() :{Token TX;Token S;String html="";}
+{
+    (< text >{html +=  " \">" ;}
+    |< color>{html +=  "color:" ;}
+    |< font >{html +=  "font-family:" ;}
+    |TX=<link >{html =  " href=" ;} )
+    < quote >S=<sentence ><quote >
+    {if (!html.contains(" \">")) {html=html+"\""+S.image+"\""; }
+    else {html=html.replace(" \">",">")+S.image; }
+    return html;}
+}
+
